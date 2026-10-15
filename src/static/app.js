@@ -26,7 +26,93 @@ document.addEventListener("DOMContentLoaded", () => {
           <p><strong>Schedule:</strong> ${details.schedule}</p>
           <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
         `;
+        const availabilityParagraph = activityCard.querySelector("p:last-of-type");
 
+        const participantsSection = document.createElement("div");
+        participantsSection.className = "participants-section";
+
+        const participantsHeading = document.createElement("h5");
+        participantsHeading.className = "participants-heading";
+        participantsHeading.textContent = "Participants";
+
+        const participantCount = document.createElement("span");
+        participantCount.className = "participant-count";
+        participantCount.textContent = details.participants.length;
+        participantsHeading.appendChild(participantCount);
+        participantsSection.appendChild(participantsHeading);
+
+        if (details.participants.length > 0) {
+          const participantsList = document.createElement("ul");
+          participantsList.className = "participants-list";
+
+          details.participants.forEach((participant) => {
+            const participantItem = document.createElement("li");
+            participantItem.className = "participant-item";
+
+            const participantName = document.createElement("span");
+            participantName.className = "participant-name";
+            participantName.textContent = participant;
+
+            const removeButton = document.createElement("button");
+            removeButton.className = "remove-participant";
+            removeButton.type = "button";
+            removeButton.setAttribute("aria-label", `Unregister ${participant}`);
+            removeButton.title = `Unregister ${participant}`;
+            removeButton.innerHTML = `
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M4 7h16M10 11v6m4-6v6M5 7l1 13h12l1-13M9 7V4h6v3" />
+              </svg>
+            `;
+            removeButton.addEventListener("click", async () => {
+              removeButton.disabled = true;
+
+              try {
+                const response = await fetch(
+                  `/activities/${encodeURIComponent(name)}/signup?email=${encodeURIComponent(participant)}`,
+                  { method: "DELETE" }
+                );
+                const result = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(result.detail || "Failed to unregister participant.");
+                }
+
+                participantItem.remove();
+                const remainingParticipants = details.participants.length - 1;
+                details.participants.splice(details.participants.indexOf(participant), 1);
+                participantCount.textContent = remainingParticipants;
+                availabilityParagraph.lastChild.textContent =
+                  ` ${details.max_participants - remainingParticipants} spots left`;
+
+                if (remainingParticipants === 0) {
+                  const emptyMessage = document.createElement("p");
+                  emptyMessage.className = "participants-empty";
+                  emptyMessage.textContent = "No participants yet";
+                  participantsSection.appendChild(emptyMessage);
+                }
+              } catch (error) {
+                messageDiv.textContent = error.message || "Failed to unregister participant. Please try again.";
+                messageDiv.className = "error";
+                messageDiv.classList.remove("hidden");
+                console.error("Error unregistering participant:", error);
+              } finally {
+                removeButton.disabled = false;
+              }
+            });
+
+            participantItem.append(participantName, removeButton);
+            participantsList.appendChild(participantItem);
+          });
+
+          participantsSection.appendChild(participantsList);
+        } else {
+          const emptyMessage = document.createElement("p");
+          emptyMessage.className = "participants-empty";
+          emptyMessage.textContent = "No participants yet";
+          participantsSection.appendChild(emptyMessage);
+        }
+
+        activityCard.appendChild(participantsSection);
         activitiesList.appendChild(activityCard);
 
         // Add option to select dropdown
